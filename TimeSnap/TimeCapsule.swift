@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 struct TimeCapsule: Identifiable, Codable {
     let id: UUID
@@ -8,8 +9,14 @@ struct TimeCapsule: Identifiable, Codable {
     var includeTime: Bool
     var mediaItems: [MediaItem]
     var createdAt: Date
+    var color: Color
     
-    init(id: UUID = UUID(), title: String, description: String, unlockDate: Date, includeTime: Bool = false, mediaItems: [MediaItem] = [], createdAt: Date = Date()) {
+    enum CodingKeys: String, CodingKey {
+        case id, title, description, unlockDate, includeTime, mediaItems, createdAt
+        case colorRed, colorGreen, colorBlue
+    }
+    
+    init(id: UUID = UUID(), title: String, description: String, unlockDate: Date, includeTime: Bool = false, mediaItems: [MediaItem] = [], createdAt: Date = Date(), color: Color = Color(red: 0.8, green: 0.6, blue: 0.4)) {
         self.id = id
         self.title = title
         self.description = description
@@ -17,6 +24,46 @@ struct TimeCapsule: Identifiable, Codable {
         self.includeTime = includeTime
         self.mediaItems = mediaItems
         self.createdAt = createdAt
+        self.color = color
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        description = try container.decode(String.self, forKey: .description)
+        unlockDate = try container.decode(Date.self, forKey: .unlockDate)
+        includeTime = try container.decode(Bool.self, forKey: .includeTime)
+        mediaItems = try container.decode([MediaItem].self, forKey: .mediaItems)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        
+        let red = try container.decode(Double.self, forKey: .colorRed)
+        let green = try container.decode(Double.self, forKey: .colorGreen)
+        let blue = try container.decode(Double.self, forKey: .colorBlue)
+        color = Color(red: red, green: green, blue: blue)
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encode(description, forKey: .description)
+        try container.encode(unlockDate, forKey: .unlockDate)
+        try container.encode(includeTime, forKey: .includeTime)
+        try container.encode(mediaItems, forKey: .mediaItems)
+        try container.encode(createdAt, forKey: .createdAt)
+        
+        // Extract RGB components from the color
+        let uiColor = UIColor(color)
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        
+        try container.encode(Double(red), forKey: .colorRed)
+        try container.encode(Double(green), forKey: .colorGreen)
+        try container.encode(Double(blue), forKey: .colorBlue)
     }
 }
 

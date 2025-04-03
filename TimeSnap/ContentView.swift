@@ -13,17 +13,20 @@ struct ContentView: View {
     @StateObject private var viewModel = TimeCapsuleViewModel()
     @State private var showingNewCapsuleSheet = false
     
+    let columns = [
+        GridItem(.flexible()),
+        GridItem(.flexible())
+    ]
+    
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(viewModel.timeCapsules) { capsule in
-                    TimeCapsuleRow(capsule: capsule)
-                }
-                .onDelete { indexSet in
-                    for index in indexSet {
-                        viewModel.deleteTimeCapsule(viewModel.timeCapsules[index])
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 16) {
+                    ForEach(viewModel.timeCapsules) { capsule in
+                        TimeCapsuleCard(capsule: capsule)
                     }
                 }
+                .padding()
             }
             .navigationTitle("Time Capsules")
             .toolbar {
@@ -40,7 +43,7 @@ struct ContentView: View {
     }
 }
 
-struct TimeCapsuleRow: View {
+struct TimeCapsuleCard: View {
     let capsule: TimeCapsule
     @State private var showingDetail = false
     
@@ -50,48 +53,73 @@ struct TimeCapsuleRow: View {
                 showingDetail = true
             }
         }) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(capsule.title)
-                        .font(.headline)
-                    Spacer()
+            VStack(spacing: 0) {
+                // Time Capsule Image
+                ZStack {
+                    // Background gradient
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            capsule.color,
+                            capsule.color.opacity(0.8)
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    
+                    // Time capsule shape
+                    Image(systemName: "capsule.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.white)
+                        .shadow(radius: 5)
+                    
+                    // Lock overlay if locked
                     if capsule.unlockDate > Date() {
                         Image(systemName: "lock.fill")
-                            .foregroundColor(.blue)
-                    } else {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 14))
-                            .foregroundColor(.gray)
+                            .font(.system(size: 24))
+                            .foregroundColor(.white)
+                            .padding(8)
+                            .background(Color.blue)
+                            .clipShape(Circle())
+                            .offset(x: 30, y: -30)
                     }
                 }
+                .frame(height: 160)
+                .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
                 
-                if capsule.unlockDate > Date() {
-                    Text("Unlocks: \(capsule.unlockDate.formatted(date: .long, time: capsule.includeTime ? .shortened : .omitted))")
-                        .font(.caption)
-                        .foregroundColor(.blue)
+                // Content
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(capsule.title)
+                        .font(.headline)
+                        .lineLimit(1)
                     
-                    Text("This time capsule is locked until the unlock date")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .italic()
-                } else {
-                    Text(capsule.description)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    if !capsule.mediaItems.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(capsule.mediaItems) { item in
-                                    MediaItemView(item: item)
-                                        .frame(width: 60, height: 60)
-                                }
+                    if capsule.unlockDate > Date() {
+                        Text("Unlocks: \(capsule.unlockDate.formatted(date: .abbreviated, time: capsule.includeTime ? .shortened : .omitted))")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    } else {
+                        Text(capsule.description)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .lineLimit(2)
+                        
+                        if !capsule.mediaItems.isEmpty {
+                            HStack(spacing: 4) {
+                                Image(systemName: "photo.on.rectangle")
+                                    .font(.caption)
+                                Text("\(capsule.mediaItems.count)")
+                                    .font(.caption)
                             }
+                            .foregroundColor(.secondary)
                         }
                     }
                 }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.systemBackground))
             }
-            .padding(.vertical, 4)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .shadow(radius: 5)
         }
         .buttonStyle(PlainButtonStyle())
         .sheet(isPresented: $showingDetail) {
@@ -284,6 +312,18 @@ struct NewTimeCapsuleView: View {
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var selectedVideos: [PhotosPickerItem] = []
     @State private var showingAudioRecorder = false
+    @State private var selectedColor = Color(red: 0.8, green: 0.6, blue: 0.4)
+    
+    let colors: [Color] = [
+        Color(red: 0.8, green: 0.6, blue: 0.4), // Bronze
+        Color(red: 0.7, green: 0.7, blue: 0.7), // Silver
+        Color(red: 0.9, green: 0.8, blue: 0.5), // Gold
+        Color(red: 0.6, green: 0.8, blue: 0.7), // Mint
+        Color(red: 0.7, green: 0.6, blue: 0.8), // Purple
+        Color(red: 0.8, green: 0.7, blue: 0.6), // Rose
+        Color(red: 0.6, green: 0.7, blue: 0.8), // Blue
+        Color(red: 0.8, green: 0.8, blue: 0.6)  // Yellow
+    ]
     
     var body: some View {
         NavigationStack {
@@ -320,6 +360,32 @@ struct NewTimeCapsuleView: View {
                                          in: Date()...,
                                          displayedComponents: .date)
                                     .padding(.horizontal)
+                            }
+                            
+                            // Color Selection
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Choose Color")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 12) {
+                                        ForEach(colors, id: \.self) { color in
+                                            Button(action: {
+                                                selectedColor = color
+                                            }) {
+                                                Circle()
+                                                    .fill(color)
+                                                    .frame(width: 40, height: 40)
+                                                    .overlay(
+                                                        Circle()
+                                                            .stroke(Color.primary, lineWidth: selectedColor == color ? 2 : 0)
+                                                    )
+                                            }
+                                        }
+                                    }
+                                    .padding(.horizontal)
+                                }
                             }
                         }
                         .padding(.vertical, 8)
@@ -443,7 +509,8 @@ struct NewTimeCapsuleView: View {
                             description: description,
                             unlockDate: unlockDate,
                             includeTime: includeTime,
-                            mediaItems: mediaItems
+                            mediaItems: mediaItems,
+                            color: selectedColor
                         )
                         viewModel.addTimeCapsule(newCapsule)
                         dismiss()
