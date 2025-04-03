@@ -10,13 +10,16 @@ struct TimeCapsule: Identifiable, Codable {
     var mediaItems: [MediaItem]
     var createdAt: Date
     var color: Color
+    var sharedWith: [String] // Array of email addresses
+    var isShared: Bool
     
     enum CodingKeys: String, CodingKey {
         case id, title, description, unlockDate, includeTime, mediaItems, createdAt
         case colorRed, colorGreen, colorBlue
+        case sharedWith, isShared
     }
     
-    init(id: UUID = UUID(), title: String, description: String, unlockDate: Date, includeTime: Bool = false, mediaItems: [MediaItem] = [], createdAt: Date = Date(), color: Color = Color(red: 0.8, green: 0.6, blue: 0.4)) {
+    init(id: UUID = UUID(), title: String, description: String, unlockDate: Date, includeTime: Bool = false, mediaItems: [MediaItem] = [], createdAt: Date = Date(), color: Color = Color(red: 0.8, green: 0.6, blue: 0.4), sharedWith: [String] = [], isShared: Bool = false) {
         self.id = id
         self.title = title
         self.description = description
@@ -25,6 +28,8 @@ struct TimeCapsule: Identifiable, Codable {
         self.mediaItems = mediaItems
         self.createdAt = createdAt
         self.color = color
+        self.sharedWith = sharedWith
+        self.isShared = isShared
     }
     
     init(from decoder: Decoder) throws {
@@ -36,6 +41,8 @@ struct TimeCapsule: Identifiable, Codable {
         includeTime = try container.decode(Bool.self, forKey: .includeTime)
         mediaItems = try container.decode([MediaItem].self, forKey: .mediaItems)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
+        sharedWith = try container.decode([String].self, forKey: .sharedWith)
+        isShared = try container.decode(Bool.self, forKey: .isShared)
         
         let red = try container.decode(Double.self, forKey: .colorRed)
         let green = try container.decode(Double.self, forKey: .colorGreen)
@@ -52,6 +59,8 @@ struct TimeCapsule: Identifiable, Codable {
         try container.encode(includeTime, forKey: .includeTime)
         try container.encode(mediaItems, forKey: .mediaItems)
         try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(sharedWith, forKey: .sharedWith)
+        try container.encode(isShared, forKey: .isShared)
         
         // Extract RGB components from the color
         let uiColor = UIColor(color)

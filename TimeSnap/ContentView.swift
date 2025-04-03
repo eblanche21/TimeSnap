@@ -23,7 +23,7 @@ struct ContentView: View {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 16) {
                     ForEach(viewModel.timeCapsules) { capsule in
-                        TimeCapsuleCard(capsule: capsule)
+                        TimeCapsuleCard(capsule: capsule, viewModel: viewModel)
                     }
                 }
                 .padding()
@@ -43,9 +43,28 @@ struct ContentView: View {
     }
 }
 
+struct ShareButton: View {
+    let isShared: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: isShared ? "person.2.fill" : "person.badge.plus")
+                .font(.system(size: 24))
+                .foregroundColor(.white)
+                .padding(8)
+                .background(isShared ? Color.green : Color.blue)
+                .clipShape(Circle())
+        }
+        .offset(x: -30, y: -30)
+    }
+}
+
 struct TimeCapsuleCard: View {
     let capsule: TimeCapsule
     @State private var showingDetail = false
+    @State private var showingShareSheet = false
+    @ObservedObject var viewModel: TimeCapsuleViewModel
     
     var body: some View {
         Button(action: {
@@ -81,6 +100,11 @@ struct TimeCapsuleCard: View {
                             .background(Color.blue)
                             .clipShape(Circle())
                             .offset(x: 30, y: -30)
+                    }
+                    
+                    // Share button
+                    ShareButton(isShared: capsule.isShared) {
+                        showingShareSheet = true
                     }
                 }
                 .frame(height: 160)
@@ -124,6 +148,9 @@ struct TimeCapsuleCard: View {
         .buttonStyle(PlainButtonStyle())
         .sheet(isPresented: $showingDetail) {
             TimeCapsuleDetailView(capsule: capsule)
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            ShareTimeCapsuleView(capsule: capsule, viewModel: viewModel)
         }
     }
 }
@@ -503,14 +530,16 @@ struct NewTimeCapsuleView: View {
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") {
+                    Button("Create Time Capsule") {
                         let newCapsule = TimeCapsule(
                             title: title,
                             description: description,
                             unlockDate: unlockDate,
                             includeTime: includeTime,
                             mediaItems: mediaItems,
-                            color: selectedColor
+                            color: selectedColor,
+                            sharedWith: [],
+                            isShared: false
                         )
                         viewModel.addTimeCapsule(newCapsule)
                         dismiss()
@@ -581,6 +610,97 @@ struct NewTimeCapsuleView: View {
                 print("Error deleting media file: \(error)")
             }
         }
+    }
+}
+
+struct ShareTimeCapsuleView: View {
+    let capsule: TimeCapsule
+    @ObservedObject var viewModel: TimeCapsuleViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var emailAddress = ""
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                if capsule.sharedWith.count > 0 {
+                    // Show current shares
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Shared with:")
+                            .font(.headline)
+                        
+                        ForEach(capsule.sharedWith, id: \.self) { email in
+                            HStack {
+                                Text(email)
+                                Spacer()
+                                Button(action: {
+                                    viewModel.removeShare(capsule: capsule, email: email)
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.red)
+                                }
+                            }
+                        }
+                    }
+                    .padding()
+                }
+                
+                // Add new share
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Share with:")
+                        .font(.headline)
+                    
+                    HStack {
+                        TextField("Email address", text: $emailAddress)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .keyboardType(.emailAddress)
+                            .autocapitalization(.none)
+                        
+                        Button(action: shareCapsule) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(.blue)
+                        }
+                        .disabled(emailAddress.isEmpty)
+                    }
+                }
+                .padding()
+                
+                Spacer()
+            }
+            .navigationTitle("Share Time Capsule")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+            .alert("Share Time Capsule", isPresented: $showingAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(alertMessage)
+            }
+        }
+    }
+    
+    private func shareCapsule() {
+        guard !emailAddress.isEmpty else { return }
+        
+        // Basic email validation
+        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+        let emailPredicate = NSPredicate(format:"SELF MATCHES %@", emailRegex)
+        
+        if emailPredicate.evaluate(with: emailAddress) {
+            viewModel.shareCapsule(capsule: capsule, with: emailAddress)
+            emailAddress = ""
+            alertMessage = "Time capsule shared successfully!"
+        } else {
+            alertMessage = "Please enter a valid email address."
+        }
+        showingAlert = true
     }
 }
 
